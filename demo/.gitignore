@@ -1,0 +1,43 @@
+# ===== Maven / Java build output =====
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# ===== IntelliJ IDEA =====
+.idea/
+*.iml
+out/
+
+# ===== VS Code =====
+.vscode/
+# If you want to keep shared workspace settings, use this instead:
+# .vscode/*
+# !.vscode/settings.json
+# !.vscode/launch.json
+# !.vscode/tasks.json
+# !.vscode/extensions.json
+
+# ===== Eclipse / JDT / language servers =====
+.classpath
+.project
+.settings/
+.factorypath
+
+# ===== OS / misc =====
+.DS_Store
+Thumbs.db
+
+# ===== WSL / Linux temp =====
+*~
+*.swp
+*.swo
+
+# ===== Maven wrapper note =====
+# DO NOT ignore these:
+# mvnw
+# mvnw.cmd
+# .mvn/wrapper/**
+
