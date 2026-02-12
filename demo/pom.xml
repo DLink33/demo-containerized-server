@@ -2,47 +2,123 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+  <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.dlink33</groupId>
-    <artifactId>demo-containerized-server</artifactId>
-    <version>1.0.0</version>
+  <groupId>io.github.dlink33</groupId>
+  <artifactId>demo-containerized-server</artifactId>
+  <version>1.0.0</version>
 
-    <properties>
-      <maven.compiler.release>17</maven.compiler.release>
-      <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
+  <properties>
+    <!-- Compile using Java 17 language + bytecode level (preferred modern setting) -->
+    <maven.compiler.release>17</maven.compiler.release>
 
-    <build>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-shade-plugin</artifactId>
-          <version>3.6.0</version>
+    <!-- Ensures Java source is interpreted consistently across machines -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
 
-          <executions>
-            <execution>
-              <phase>package</phase>
+  <build>
+    <plugins>
 
-              <goals>
-                <goal>shade</goal>
-              </goals>
+      <!--
+        1) maven-shade-plugin
+        Purpose:
+          - Produces a "fat/shaded" JAR: your classes + dependency classes in ONE runnable jar.
+          - Especially useful for Docker/servers where you want a single artifact.
 
-              <configuration>
-                <finalName>demo-server</finalName>
+        What you get:
+          - Normal (thin) jar: target/demo-containerized-server-1.0.0.jar
+          - Shaded (fat) jar:  target/demo-containerized-server-1.0.0-shaded.jar
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.6.0</version>
 
-                <transformers>
-                  <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                    <mainClass>io.github.dlink33.App</mainClass>
-                  </transformer>
-                </transformers>
-              </configuration>
-            </execution>
-          </executions>
+        <executions>
+          <execution>
+            <!-- Run this shading step during Maven's "package" phase -->
+            <phase>package</phase>
 
-        </plugin>
-      </plugins>
-    </build>
+            <goals>
+              <!-- "shade" goal = perform the jar merging/relocation work -->
+              <goal>shade</goal>
+            </goals>
 
+            <configuration>
+              <!-- Attach shaded jar as an additional artifact instead of replacing the main jar -->
+              <shadedArtifactAttached>true</shadedArtifactAttached>
 
+              <!-- Name suffix appended to the normal jar: -shaded -->
+              <shadedClassifierName>shaded</shadedClassifierName>
+
+              <transformers>
+                <!--
+                  ManifestResourceTransformer:
+                  - Writes/merges META-INF/MANIFEST.MF
+                  - Sets Main-Class so "java -jar ..." knows what to launch.
+                -->
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <!-- Must match the fully-qualified name of your entrypoint class -->
+                  <mainClass>io.github.dlink33.App</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!--
+        2) maven-compiler-plugin
+        Purpose:
+          - Controls how Maven compiles .java -> .class (javac settings).
+          - Prevents Maven from defaulting to very old source/target levels.
+          - Forces Java 17 compilation reliably.
+      -->
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <!-- Same idea as the property above; explicit here makes it unambiguous -->
+          <release>17</release>
+        </configuration>
+      </plugin>
+
+      <!--
+        3) maven-antrun-plugin
+        Purpose:
+          - Runs a small Ant task during the Maven lifecycle.
+          - Create a stable filename for Docker/scripts: target/demo-server.jar
+          - Without changing the versioned shaded jar name.
+
+        What it does:
+          - Copies:
+              target/demo-containerized-server-1.0.0-shaded.jar
+            to:
+              target/demo-server.jar
+      -->
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <!-- Also runs during "package" so the alias jar appears after packaging -->
+            <phase>package</phase>
+            <goals>
+              <!-- "run" goal executes the <target> block below -->
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <copy
+                  file="${project.build.directory}/${project.artifactId}-${project.version}-shaded.jar"
+                  tofile="${project.build.directory}/demo-server.jar"
+                  overwrite="true" />
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+    </plugins>
+  </build>
 </project>
